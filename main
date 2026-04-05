@@ -1,0 +1,464 @@
+% Problem 1a
+
+n_values = [5, 10, 15, 20, 30, 40, 50];
+trials = 100000;
+Psim_An = zeros(size(n_values));
+
+for i = 1:length(n_values) 
+    n = n_values(i);
+    same_birthdays = 0;
+
+    for t = 1:trials
+        birthdays_generated = randi([1, 365], 1, n); 
+
+        if length(unique(birthdays_generated)) < n 
+            same_birthdays = same_birthdays + 1;
+        end
+    end
+
+    Psim_An(i) = same_birthdays / trials;
+end
+
+% Problem 1c
+
+P_exact_An = zeros(size(n_values));
+
+for i = 1:length(n_values) 
+    n = n_values(i);
+    P_exact_An(i) = 1 - prod((365 - (0:n-1)) / 365);
+    fprintf('P_exact_An for %d is %.6f\n', n, P_exact_An(i));
+end
+
+plot(n_values, Psim_An, 'ro-');
+hold on;
+xlabel('Number of People in Room (n)');
+ylabel('Simulated Probability of At Least Two People in a Room Having the Same Birthday');
+title('Birthday Paradox Simulation');
+plot(n_values, P_exact_An, 'bx-');
+legend("Simulated probability", "Theoretical probability");
+hold off;
+
+% Problem 1d
+
+n2 = 10:50;
+P_numerical = zeros(size(n2));
+
+for i = 1:length(n2)
+    n = n2(i);
+    P_numerical(i) = 1 - prod((365 - (0:n-1)) / 365);
+    fprintf('P_numerical for %d is %.6f\n', n, P_numerical(i));
+end
+
+plot(n2, P_numerical);
+xlabel('Number of People in Room (n)');
+ylabel('Calculated Probability of At Least Two People in a Room Having the Same Birthday');
+title('Birthday Paradox');
+hold off;
+
+% Problem 1ei
+
+n_class = 170;
+class_birthdays_generated = randi([1, 365], 1, n_class); 
+birthday_counts = histcounts(class_birthdays_generated,1:366);
+histogram(birthday_counts);
+xlabel('Number of Students per Birthday');
+ylabel('Number of Birthdays');
+title('Histogram of Students per Birthday');
+hold off;
+
+% Problem 1eii
+
+e_trials = 100;
+max_values = zeros(1, e_trials);
+
+for t = 1:e_trials
+    birthdays_generated = randi([1, 365], 1, n_class); 
+    birthday_counts = histcounts(birthdays_generated,1:366);
+    max_values(t) = max(birthday_counts);
+end
+
+avg_max_values = mean(max_values);
+fprintf("Average maximum number of students sharing a birthday is " + ...
+    avg_max_values);
+
+% Problem 2a
+
+N = [3, 4, 5];
+N_trials = 100000;
+pe = 0.125:0.025:0.4;
+Psim_Rep = zeros(length(N), length(pe));
+
+for i = 1:length(N) 
+    n = N(i);
+
+    for j = 1:length(pe)
+        p = pe(j);
+        undecodable = 0;
+
+        for t = 1:N_trials;
+            X = randi([0, 1]);
+            encoded_X = X * ones(1, n);
+            Y = encoded_X;
+            erasures = rand(1,n) < p;
+            Y(erasures) = NaN;
+
+            if all(isnan(Y))
+                undecodable = undecodable + 1;
+            end
+        end
+        Psim_Rep(i, j) = undecodable / N_trials;
+    end
+end
+
+figure;
+semilogy(pe, Psim_Rep(1,:), '-o', 'LineWidth', 1.5);
+hold on;
+
+semilogy(pe, Psim_Rep(2,:), '-s', 'LineWidth', 1.5);
+semilogy(pe, Psim_Rep(3,:), '-^', 'LineWidth', 1.5);
+
+xlabel('p_e')
+ylabel('P_{sim}^{Rep}')
+title('Simulated Undecodable Probability for N-Repetition Code over BEC');
+
+legend('N = 3 bits','N = 4 bits','N = 5 bits','Location','southwest');
+hold off;
+
+% Problem 2b
+
+PRep_exact = zeros(length(N), length(pe));
+
+for i = 1:length(N)
+    n = N(i);
+    for j = 1:length(pe)
+        p = pe(j);
+        PRep_exact(i, j) = p^n;
+        fprintf('P_Rep_exact for N=%d and pe=%.3f is %.6f\n', n, p, PRep_exact(i, j));
+    end
+end
+
+figure;
+semilogy(pe, PRep_exact(1,:), '-o', 'LineWidth', 1.5);
+hold on;
+
+semilogy(pe, PRep_exact(2,:), '-s', 'LineWidth', 1.5);
+semilogy(pe, PRep_exact(3,:), '-^', 'LineWidth', 1.5);
+
+xlabel('p_e')
+ylabel('P_{exact}^{Rep}')
+title('Theoretical Undecodable Probability for N-Repetition Code over BEC');
+
+legend('N = 3 bits','N = 4 bits','N = 5 bits','Location','southwest');
+hold off;
+
+% Problem 2c
+
+Psim_Sin = zeros(length(N), length(pe));
+
+for i = 1:length(N) 
+    n = N(i);
+
+    for j = 1:length(pe)
+        p = pe(j);
+        undecodable = 0;
+
+        for t = 1:N_trials
+            X = randi([0, 1], 1, n-1);
+            parity_bit = mod(sum(X), 2);
+            encoded_X = [X parity_bit];
+
+            Y = encoded_X;
+            erasures = rand(1,n) < p;
+            Y(erasures) = NaN;
+            number_of_erasures = sum(erasures);
+
+            if number_of_erasures > 1
+                undecodable = undecodable + 1;
+
+            elseif number_of_erasures == 1
+                erased_index = find(isnan(Y));
+                parity_sum = 0;
+                for k = 1:length(Y)
+                    if k ~= erased_index
+                        parity_sum = parity_sum + Y(k);
+                    end
+                end
+
+                Y(erased_index) = mod(parity_sum, 2);
+            end
+        end
+
+        Psim_Sin(i, j) = undecodable / N_trials;
+    end
+end
+
+figure;
+semilogy(pe, Psim_Sin(1,:), '-o', 'LineWidth', 1.5);
+hold on;
+
+semilogy(pe, Psim_Sin(2,:), '-s', 'LineWidth', 1.5);
+semilogy(pe, Psim_Sin(3,:), '-^', 'LineWidth', 1.5);
+
+xlabel('p_e')
+ylabel('P_{sim}^{Sin}')
+title('Simulated Undecodable Probability for N-Single-parity Code over BEC');
+
+legend('N = 3 bits','N = 4 bits','N = 5 bits','Location','southwest');
+hold off;
+
+P_exact_Sin = zeros(size(n_values));
+
+for i = 1:length(N)
+    n = N(i);
+    for j = 1:length(pe)
+        p = pe(j);
+        P_exact_Sin(i, j) = 1 - (1-p)^n - n * p * (1-p)^(n-1);
+        fprintf('P_exact_Sin for N=%d and pe=%.3f is %.6f\n', n, p, P_exact_Sin(i, j));
+    end
+end
+
+figure;
+semilogy(pe, P_exact_Sin(1,:), '-o', 'LineWidth', 1.5);
+hold on;
+
+semilogy(pe, P_exact_Sin(2,:), '-s', 'LineWidth', 1.5);
+semilogy(pe, P_exact_Sin(3,:), '-^', 'LineWidth', 1.5);
+
+xlabel('p_e')
+ylabel('P_{exact}^{Sin}')
+title('Theoretical Undecodable Probability for N-Single-parity Code over BEC');
+
+legend('N = 3 bits','N = 4 bits','N = 5 bits','Location','southwest');
+hold off;
+
+% Problem 3a
+
+user_data = readtable('user_data.csv');
+Bought_data = user_data.Bought;
+SpenderType_data = user_data.SpenderType;
+Sex_data = user_data.Sex;
+Age_data = user_data.Age;
+
+B = unique(Bought_data);
+b_edges = [B; max(B)+1];
+b_edges = b_edges(:)';
+
+B_counts = histcounts(Bought_data, b_edges); 
+Bought_pmf = B_counts / sum(B_counts);
+
+T = unique(SpenderType_data);
+t_edges = [T; max(T)+1];  
+t_edges = t_edges(:)';  
+
+T_counts = histcounts(SpenderType_data, t_edges);
+SpenderType_pmf = T_counts / sum(T_counts);
+
+S = unique(Sex_data);
+s_edges = [S; max(S)+1];  
+s_edges = s_edges(:)';  
+
+S_counts = histcounts(Sex_data, s_edges);
+Sex_pmf = S_counts / sum(S_counts);
+
+A = unique(Age_data);
+A_counts = arrayfun(@(x) sum(Age_data == x), A);
+Age_pmf = A_counts / sum(A_counts);
+
+figure;
+subplot(2,2,1)
+bar(B, Bought_pmf)
+title('PMF of B')
+xlabel('B')
+ylabel('PMF')
+
+subplot(2,2,2)
+bar(T, SpenderType_pmf)
+title('PMF of T')
+xlabel('T')
+ylabel('PMF')
+
+subplot(2,2,3)
+bar(S, Sex_pmf)
+title('PMF of S')
+xlabel('S')
+ylabel('PMF')
+
+subplot(2,2,4)
+bar(A, Age_pmf)
+title('PMF of A')
+xlabel('A')
+ylabel('PMF')
+hold off;
+
+% Problem 3b
+
+B_1 = Bought_data == 1;
+B_0 = Bought_data == 0;
+
+T_given_B1_data = SpenderType_data(B_1);
+T_given_B0_data = SpenderType_data(B_0);
+
+T_given_B1 = unique(T_given_B1_data);
+T_given_B0 = unique(T_given_B0_data);
+
+t_given_B1_edges = [T_given_B1; max(T_given_B1)+1];
+t_given_B1_edges = t_given_B1_edges(:)';
+
+t_given_B0_edges = [T_given_B0; max(T_given_B0)+1];
+t_given_B0_edges = t_given_B0_edges(:)';
+
+T_given_B1_counts = histcounts(T_given_B1_data, t_given_B1_edges);
+SpenderType_given_B_1_pmf = T_given_B1_counts / sum(T_given_B1_counts);
+
+T_given_B0_counts = histcounts(T_given_B0_data, t_given_B0_edges);
+SpenderType_given_B_0_pmf = T_given_B0_counts / sum(T_given_B0_counts);
+
+S_given_B1_data = Sex_data(B_1);
+S_given_B0_data = Sex_data(B_0);
+
+S_given_B1 = unique(S_given_B1_data);
+S_given_B0 = unique(S_given_B0_data);
+
+s_given_B1_edges = [S_given_B1; max(S_given_B1)+1];
+s_given_B1_edges = s_given_B1_edges(:)';
+
+s_given_B0_edges = [S_given_B0; max(S_given_B0)+1];
+s_given_B0_edges = s_given_B0_edges(:)';
+
+S_given_B1_counts = histcounts(S_given_B1_data, s_given_B1_edges);
+Sex_given_B_1_pmf = S_given_B1_counts / sum(S_given_B1_counts);
+
+S_given_B0_counts = histcounts(S_given_B0_data, s_given_B0_edges);
+Sex_given_B_0_pmf = S_given_B0_counts / sum(S_given_B0_counts);
+
+A_given_B1_data = Age_data(B_1);
+A_given_B0_data = Age_data(B_0);
+
+A_given_B1 = unique(A_given_B1_data);
+A_given_B0 = unique(A_given_B0_data);
+
+A_given_B1_counts = arrayfun(@(x) sum(A_given_B1_data == x), A_given_B1);
+Age_given_B_1_pmf = A_given_B1_counts / sum(A_given_B1_counts);
+
+A_given_B0_counts = arrayfun(@(x) sum(A_given_B0_data == x), A_given_B0);
+Age_given_B_0_pmf = A_given_B0_counts / sum(A_given_B0_counts);
+
+figure;
+
+subplot(2,3,1)
+bar(T_given_B1, SpenderType_given_B_1_pmf)
+title('PMF of T | B = 1')
+
+subplot(2,3,2)
+bar(T_given_B0, SpenderType_given_B_0_pmf)
+title('PMF of T | B = 0')
+
+subplot(2,3,3)
+bar(S_given_B1, Sex_given_B_1_pmf)
+title('PMF of S | B = 1')
+
+subplot(2,3,4)
+bar(S_given_B0, Sex_given_B_0_pmf)
+title('PMF of S | B = 0')
+
+subplot(2,3,5)
+bar(A_given_B1, Age_given_B_1_pmf)
+title('PMF of A | B = 1')
+
+subplot(2,3,6)
+bar(A_given_B0, Age_given_B_0_pmf)
+title('PMF of A | B = 0')
+
+% Problem 3c
+
+P_B0 = Bought_pmf(B == 0);
+P_B1 = Bought_pmf(B == 1);
+
+P_T1_given_B0 = sum(SpenderType_given_B_0_pmf(T_given_B0 == 1));
+P_S0_given_B0 = sum(Sex_given_B_0_pmf(S_given_B0 == 0));
+P_A_given_B0 = sum(Age_given_B_0_pmf(A_given_B0 <= 55));
+
+P_B0_T1_S0_A55 =  P_T1_given_B0 * P_S0_given_B0 * P_A_given_B0 * P_B0;
+
+P_T1_given_B1 = sum(SpenderType_given_B_1_pmf(T_given_B1 == 1));
+P_S0_given_B1 = sum(Sex_given_B_1_pmf(S_given_B1 == 0));
+P_A_given_B1 = sum(Age_given_B_1_pmf(A_given_B1 <= 55));
+
+P_B1_T1_S0_A55 = P_T1_given_B1 * P_S0_given_B1 * P_A_given_B1 * P_B1;
+
+% Problem 3d
+
+P_T1_S0_A55 = P_B0_T1_S0_A55 + P_B1_T1_S0_A55;
+
+P_B0_given = P_B0_T1_S0_A55 / P_T1_S0_A55;
+P_B1_given = P_B1_T1_S0_A55 / P_T1_S0_A55;
+
+fprintf('P(B = 0 | T = 1, S = 0, A <= 55) = %.4f\n', P_B0_given);
+fprintf('P(B = 1 | T = 1, S = 0, A <= 55) = %.4f\n', P_B1_given);
+fprintf(['There is a %.2f%% chance a female whose age is below 55 and ' ...
+    'who is a large spender will buy the product.\n'], P_B1_given * 100);
+
+% Problem 4a
+
+t = 10000;
+n_for_Z = [1, 2, 3, 10, 30, 100];
+
+
+for i = 1:length(n_for_Z)
+    n = n_for_Z(i);
+    X = unifrnd(3,7, t, n);
+    Zn = mean(X, 2);
+    
+    subplot(2, 3, i);
+    histogram(Zn, 'Normalization','pdf');
+    hold on;
+
+    % Problem 4c
+    mu = 5;
+    sigma = sqrt(4 / (3 * n));
+
+    x = linspace(min(Zn), max(Zn), 200);
+    y = normpdf(x, mu, sigma);
+    plot(x, y, 'r', 'LineWidth', 2);
+
+    title(['n = ', num2str(n)]);
+    xlabel('z');
+    ylabel('pdf');
+    legend('Histogram of Z_n', 'Gaussian PDF');
+    hold off;
+
+end
+
+sgtitle('PDF of Zn for n = 1, 2, 3, 10, 30, 100');
+
+% Problem 4d
+
+die_outcomes = [1, 2, 3, 4, 5, 6];
+die_probabilities = [0.25, 0.25, 0.125, 0.125, 0.125, 0.125];
+
+for i = 1:length(n_for_Z)
+    n = n_for_Z(i);
+    X = randsample(die_outcomes, t * n, true, die_probabilities);
+    X = reshape(X, t, n);
+    Zn = mean(X, 2);
+    
+    subplot(2, 3, i);
+    histogram(Zn, 'Normalization','pdf', 'BinWidth', 1/(n+1));
+    title(['n = ', num2str(n)]);
+    hold on;
+
+    mu = 3;
+    sigma = sqrt(3 / n);
+    
+    x = linspace(min(Zn), max(Zn), 200);
+    y = normpdf(x, mu, sigma);
+    plot(x, y, 'r', 'LineWidth', 2);
+
+    xlabel('z');
+    ylabel('pdf');
+    legend('Histogram of Z_n', 'Gaussian PDF');
+    hold off;
+
+end
+
+sgtitle('Histogram of Zn for die rolls for n = 1, 2, 3, 10, 30, 100');
